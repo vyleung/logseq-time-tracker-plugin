@@ -1,0 +1,30 @@
+{
+  "name": "logseq-time-tracker-plugin",
+  "version": "1.0.0",
+  "description": "Track time spent on tasks",
+  "main": "dist/index.html",
+  "targets": {
+    "main": false
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "parcel build --no-source-maps src/index.html --public-url ./"
+  },
+  "keywords": [],
+  "author": "vyleung",
+  "license": "MIT",
+  "dependencies": {
+    "@logseq/libs": "^0.0.1-alpha.35",
+    "date-fns": "^2.28.0",
+    "driftless": "^2.0.3",
+    "text-field-edit": "^3.1.9001"
+  },
+  "logseq": {
+    "id": "logseq-time-tracker-plugin",
+    "title": "logseq-time-tracker-plugin",
+    "icon": "./icon.png"
+  },
+  "devDependencies": {
+    "parcel": "^2.3.2"
+  }
+}

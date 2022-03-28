@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>logseq-time-tracker-plugin</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        display: flex;
+        justify-content: center;
+      }
+      body, textarea, button {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        font-size: 1em;
+      }
+      .column {
+        float: left;
+      }  
+      .left {
+        width: 88%;
+      }
+      .right {
+        width: 10%;
+      }
+      .row {
+        padding: 0.5em;
+        width: 26em;
+        height: 5em;
+        border-radius: 0.35em;
+        box-shadow: rgba(0, 0, 0, 0.35) 0px 3px 10px;
+      }
+      .row:after {
+        content: "";
+        display: table;
+        clear: both;
+      }
+      #add-task {
+        width: 100%;
+        height: 4em;
+        resize: none;
+        border: none;
+        overflow: hidden;
+      }
+      #add-task::placeholder {
+        font-style: italic;
+        color: #929292;
+      }
+      button {
+        width: 2em;
+        height: 2em;
+        margin-top: -0.5em;
+        border-radius: 50%;
+      }
+      #add-task, #start-button, #settings-button {
+        display: block;
+      }
+      #app, #stop-button {
+        display: none;
+      }
+      #app, #add-task {
+        padding: 0.5em;
+        border-radius: 6px;
+      }
+      #settings-button {
+        padding-top: 1.75em;
+        padding-left: 1em;
+      }
+      button, button:hover {
+        cursor: pointer;
+        background-color: transparent;
+        border: 1px solid transparent;
+      }
+      svg {
+        stroke-width: 1.75px;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        width: 2.75em;
+        height: 2.75em;
+      }
+      polygon, rect {
+        fill: #FFFFFF;
+      }
+      #circle-start-icon {
+        fill: #009000;
+      }
+      #circle-start-icon:hover {
+        fill: #00A800;
+      }
+      #circle-stop-icon {
+        fill: #A80000;
+      }
+      #circle-stop-icon:hover {
+        fill: #C10000;
+      }
+      line {
+        stroke-width: 2.5px;
+      }
+      #settings-icon {
+        stroke: #787878;
+        width: 1.5em !important;
+        height: 1.5em !important;
+        
+      }
+      #settings-icon:hover {
+        stroke: #929292;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="row" id="container">
+      <div class="column left">
+        <div id="app"></div>
+        <textarea id="add-task" placeholder="Add a new task"></textarea>
+      </div>
+      <div class="column right">
+        <button id="start-button" title="Start timer">
+          <svg id="start-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="feather feather-play-circle">
+            <circle id="circle-start-icon" cx="12" cy="12" r="10"></circle>
+            <polygon points="10 8 16 12 10 16 10 8"></polygon>
+          </svg>
+        </button>
+
+        <button id="stop-button" title="Stop timer">
+          <svg id="stop-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="feather feather-stop-circle">
+            <circle id="circle-stop-icon" cx="12" cy="12" r="10"></circle>
+            <rect x="9" y="9" width="6" height="6"></rect>
+          </svg>
+        </button>
+
+        <button id="settings-button" title="Open settings">
+          <svg id="settings-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="feather feather-menu">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>  
+    <audio src="../ding.mp3" id="pomo-notif"></audio>
+
+    <script src="index.js" type="module"></script>
+  </body>
+</html>
