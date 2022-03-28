@@ -34,13 +34,13 @@
 
 ## Installation
 ### Preparation
-1. Click the 3 dots in the righthand corner → `Settings` → `Advanced` → Enable `Plug-in system`
-2. Restart Logseq
-3. Click the 3 dots → `Plugins` (or use keyboard shortcut `Esc t p`).
+1. Click the 3 dots in the righthand corner → `Settings` → `Advanced` → Enable `Developer mode` and `Plug-in system`
+2. Click the 3 dots in the righthand corner → `Plugins` (or use keyboard shortcut `Esc t p`)
+
 ### Load plugin via the marketplace (not available yet)
 
 ### Load plugin manually
-1. Download the latest release of the plugin (.zip file) from Github
+1. Download the latest release of the plugin (e.g logseq-time-tracker-plugin-v.1.0.0.zip file) from Github
 2. Unzip the file
 3. Navigate to plugins (Click the 3 dots → `Plugins` (or use keyboard shortcut `Esc t p`)) → `Load unpacked plugin` → Select the folder of the unzipped file
 
