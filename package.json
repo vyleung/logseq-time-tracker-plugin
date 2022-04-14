@@ -1,6 +1,6 @@
 {
   "name": "logseq-time-tracker-plugin",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Track time spent on tasks",
   "main": "dist/index.html",
   "targets": {
@@ -25,6 +25,6 @@
     "icon": "./icon.png"
   },
   "devDependencies": {
-    "parcel": "^2.3.2"
+    "parcel": "^2.4.1"
   }
 }
