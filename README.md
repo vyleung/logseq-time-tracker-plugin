@@ -1,4 +1,5 @@
 ## logseq-time-tracker-plugin
+- [Demo videos](https://loom.com/share/folder/9644cc808d254e17826e1aeb4fba394c)
 
 ## Core Features
 > The **_time tracked_** and **_total time tracked_** are inserted as a block property in the following notation: `hours:minutes:seconds` (e.g. 00:17:32 → 17 minutes and 32 seconds)
