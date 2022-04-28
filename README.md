@@ -1,4 +1,5 @@
 ## logseq-time-tracker-plugin
+- [Demo videos](https://loom.com/share/folder/9644cc808d254e17826e1aeb4fba394c)
 
 ## Core Features
 > The **_time tracked_** and **_total time tracked_** are inserted as a block property in the following notation: `hours:minutes:seconds` (e.g. 00:17:32 → 17 minutes and 32 seconds)
@@ -28,7 +29,7 @@
 - Slash (/) command  
 - After getting the total time tracked for the first time, an inline refresh button will appear to make it easier to update the total time tracked (the color and position of the button can be configured in the [settings](#settings))
     - 🚨 <u>**NOTE:**</u> Always use the block context menu or slash command to get the inital total time tracked. Please do **NOT** copy and paste `{{renderer :refreshTotalTimeTracked}}` to other blocks
-> ⚠️ BUG: After Logseq is refreshed/quit, the refresh button will not be displayed next to the `total-time-tracked` property. As a workaround, reload the plugin – OR – disable the plugin, then enable it
+> ⚠️ [KNOWN ISSUE](https://github.com/vyleung/logseq-time-tracker-plugin/issues/5): After Logseq is refreshed/quit, the refresh button will not be displayed next to the `total-time-tracked` property. As a workaround, reload the plugin – OR – disable the plugin, then enable it
 #### Demo
 ![logseq-time-tracker-plugin total time tracked demo](screenshots/logseq_time_tracker_totalTimeTracked_demo.gif)
 
