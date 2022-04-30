@@ -2,6 +2,7 @@ import "@logseq/libs";
 import {setDriftlessTimeout, setDriftlessInterval, clearDriftless} from "driftless";
 import {format, getUnixTime} from "date-fns";
 import * as textFieldEdit from 'text-field-edit';
+import { __esModule } from "driftless";
 
 let h;
 let m;
@@ -43,6 +44,7 @@ let time_elapsed_pomo;
 
 let todays_journal_title;
 let workflow_format;
+let selected_task_uuid;
 let block_uuid;
 let last_block_uuid;
 let created_block_uuid;
@@ -53,7 +55,6 @@ let current_time;
 let time_elapsed_stopwatch;
 let log_entry_start;
 let log_entry_stop;
-let refresh_uuid;
 
 const app = document.getElementById("app");
 const add_task = document.getElementById("add-task");
@@ -177,6 +178,13 @@ let settings = [
     description: "This is used to align the refresh button with text content in the blocks (default: -2.75em) - To move the button up, make the number more negative (e.g. -3.5em). To move the button down, make the number more positive (e.g. -1.5em)",
     type: "string",
     default: "-2.75em"
+  },
+  {
+    key: "ActiveTaskEmoji",
+    title: "Emoji to indicate active task?",
+    description: "Add an emoji as a visual indicator of the task that's being time tracked (default: ⏱). Leave this setting blank if you don't want an emoji to be shown",
+    type: "string",
+    default: "⏱"
   }
 ]
 logseq.useSettingsSchema(settings);
@@ -206,8 +214,7 @@ function addTimeTracked() {
 
 function getTotalTimeTracked(e) {
   let parent_time_entry = 0;
-  let children_timeTracked_entry = 0;
-  let children_timeTrackedTotal_entry = 0;
+  let children_time_entry = 0;
   let time_tracked_total = 0;
   let parent_block_content;
 
@@ -221,232 +228,156 @@ function getTotalTimeTracked(e) {
     }
   }
 
-  setDriftlessTimeout(() => {
-    logseq.Editor.getBlock(e.uuid, {includeChildren: true}).then(level1 => {
-      parent_block_content = level1.content;
-
-      // for blocks w/ children
-      if (level1.children.length != 0) {
-        logseq.Editor.getBlockProperty(e.uuid, "time-tracked").then(parent_timeTracked => {
-          logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(parent_timeTrackedTotal => {
-            // if the parent block has both the time-tracked-total and time-tracked properties
-            if ((parent_timeTrackedTotal != null) && (parent_timeTracked != null)) {
-              parent_time_entry = (parseInt(parent_timeTrackedTotal.split(":")[0])*3600) + (parseInt(parent_timeTrackedTotal.split(":")[1])*60) + parseInt(parent_timeTrackedTotal.split(":")[2]);
-            }
-            // if the parent block only has the time-tracked property
-            else if ((parent_timeTrackedTotal == null) && (parent_timeTracked != null)) {
-              parent_time_entry = (parseInt(parent_timeTracked.split(":")[0])*3600) + (parseInt(parent_timeTracked.split(":")[1])*60) + parseInt(parent_timeTracked.split(":")[2]);
-            }
-            // if the parent block only has the time-tracked-total property or if the parent block doesn't have either the time-tracked-total or time-tracked property
-            else if ((parent_timeTrackedTotal != null) && (parent_timeTracked == null) || (parent_timeTrackedTotal == null) && (parent_timeTracked == null)) {
-              parent_time_entry = 0;
-            }
-          });
-        });
-
-        for (const level2 of level1.children) {
-          // level 2 blocks
-          logseq.Editor.getBlockProperties(level2.uuid).then(level2_property => {
-            // if the block only has the time-tracked-total property
-            if (level2_property.timeTrackedTotal) {
-              children_timeTrackedTotal_entry = (parseInt(level2_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level2_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level2_property.timeTrackedTotal.split(":")[2]);
-            }
-            // if the block only has the time-tracked property
-            else if (level2_property.timeTracked) {
-              children_timeTracked_entry += (parseInt(level2_property.timeTracked.split(":")[0])*3600) + (parseInt(level2_property.timeTracked.split(":")[1])*60) + parseInt(level2_property.timeTracked.split(":")[2]);
-            }
-            // if the block has both the time-tracked-total and time-tracked properties
-            else if ((level2_property.timeTrackedTotal) && (level2_property.timeTracked)) {
-              children_timeTracked_entry += 0;
-
-              children_timeTrackedTotal_entry += (parseInt(level2_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level2_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level2_property.timeTrackedTotal.split(":")[2]);
-            }
-          });
-
-          if (level2.children.length != 0) {
-            // level 3 blocks
-            for (const level3 of level2.children) {
-              logseq.Editor.getBlockProperties(level3.uuid).then(level3_property => {
-                // if the block only has the time-tracked-total property
-                if (level3_property.timeTrackedTotal) {
-                  children_timeTrackedTotal_entry = (parseInt(level3_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level3_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level3_property.timeTrackedTotal.split(":")[2]);
-                }
-                // if the block only has the time-tracked property
-                else if (level3_property.timeTracked) {
-                  children_timeTracked_entry += (parseInt(level3_property.timeTracked.split(":")[0])*3600) + (parseInt(level3_property.timeTracked.split(":")[1])*60) + parseInt(level3_property.timeTracked.split(":")[2]);
-                }
-                // if the block has both the time-tracked-total and time-tracked properties
-                else if ((level3_property.timeTrackedTotal) && (level3_property.timeTracked)) {
-                  children_timeTracked_entry += 0;
-      
-                  children_timeTrackedTotal_entry += (parseInt(level3_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level3_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level3_property.timeTrackedTotal.split(":")[2]);
-                }
-              });
-
-              if (level3.children.length != 0) {
-                // level 4 blocks
-                for (const level4 of level3.children) {
-                  logseq.Editor.getBlockProperties(level4.uuid).then(level4_property => {
-                    // if the block only has the time-tracked-total property
-                    if (level4_property.timeTrackedTotal) {
-                      children_timeTrackedTotal_entry = (parseInt(level4_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level4_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level4_property.timeTrackedTotal.split(":")[2]);
-                    }
-                    // if the block only has the time-tracked property
-                    else if (level4_property.timeTracked) {
-                      children_timeTracked_entry += (parseInt(level4_property.timeTracked.split(":")[0])*3600) + (parseInt(level4_property.timeTracked.split(":")[1])*60) + parseInt(level4_property.timeTracked.split(":")[2]);
-                    }
-                    // if the block has both the time-tracked-total and time-tracked properties
-                    else if ((level4_property.timeTrackedTotal) && (level4_property.timeTracked)) {
-                      children_timeTracked_entry += 0;
-          
-                      children_timeTrackedTotal_entry += (parseInt(level4_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level4_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level4_property.timeTrackedTotal.split(":")[2]);
-                    }
-                  });
-
-                  if (level4.children.length != 0) {
-                    // level 5 blocks
-                    for (const level5 of level4.children) {
-                      logseq.Editor.getBlockProperties(level5.uuid).then(level5_property => {
-                        // if the block only has the time-tracked-total property
-                        if (level5_property.timeTrackedTotal) {
-                          children_timeTrackedTotal_entry = (parseInt(level5_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level5_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level5_property.timeTrackedTotal.split(":")[2]);
-                        }
-                        // if the block only has the time-tracked property
-                        else if (level5_property.timeTracked) {
-                          children_timeTracked_entry += (parseInt(level5_property.timeTracked.split(":")[0])*3600) + (parseInt(level5_property.timeTracked.split(":")[1])*60) + parseInt(level5_property.timeTracked.split(":")[2]);
-                        }
-                        // if the block has both the time-tracked-total and time-tracked properties
-                        else if ((level5_property.timeTrackedTotal) && (level5_property.timeTracked)) {
-                          children_timeTracked_entry += 0;
-              
-                          children_timeTrackedTotal_entry += (parseInt(level5_property.timeTrackedTotal.split(":")[0])*3600) + (parseInt(level5_property.timeTrackedTotal.split(":")[1])*60) + parseInt(level5_property.timeTrackedTotal.split(":")[2]);
-                        }
-                      });
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-  }, 25);
-
-  setDriftlessTimeout(() => {
-    // gets the uuid of the block that the refresh button is in
-    refresh_uuid = e.uuid;
-
-    // adds time tracked of the parent block and its child(ren) blocks to get total tracked time
-    time_tracked_total = parent_time_entry + children_timeTracked_entry + children_timeTrackedTotal_entry;
-    
-    // convert total time tracked to 00:00:00
-    if (time_tracked_total <= 86399) {
-      hr = Math.floor(time_tracked_total/3600);
-      min = Math.floor((time_tracked_total/60) % 60);
-      sec = Math.floor(time_tracked_total % 60);
+  logseq.Editor.getBlockProperties(e.uuid).then(block_property => {
+    // if the parent block does NOT have any block properties
+    if (block_property == null) {
+      parent_time_entry = 0;
     }
+    // if the parent block does have block properties
     else {
-      // convert total time tracked to 00:00:00:00
-      day = Math.floor(time_tracked_total/86400);
-      hr = Math.floor(((time_tracked_total/3600) % 60) % 24);
-      min = Math.floor((time_tracked_total/60) % 60);
-      sec = Math.floor(time_tracked_total % 60);
+      // if the parent block contains both the time-tracked and time-tracked-total properties – OR – if it only has the time-tracked property, only add the time-tracked
+      if (((block_property.timeTracked) && (block_property.timeTrackedTotal)) || ((block_property.timeTracked) && (block_property.timeTrackedTotal == undefined))) {
+        parent_time_entry += parseInt(block_property.timeTracked.split(":")[0]*3600) + parseInt(block_property.timeTracked.split(":")[1]*60) + parseInt(block_property.timeTracked.split(":")[2]);
+      }
+      // if the parent block has neither the time-tracked or time-tracked-total properties – OR – if it only has the time-tracked-total property, parent_time_entry = 0 to prevent the time-tracked-total from being updated when the refresh button is clicked
+      else {  
+        parent_time_entry = 0;
+      }
     }
+  });
 
-    // 00:00:seconds
-    if (time_tracked_total <= 59) {
-      sec = (time_tracked_total.toString().length == 1) ? `0${time_tracked_total}`: `${time_tracked_total}`;
-
-      logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(a => {
-        // if the block does NOT have the time-tracked-total property
-        if (a == null) {
-          logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: 00:00:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-        // if the block does have the time-tracked-total property
-        else {
-          logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `00:00:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
+  // ref for traversing through a block and their children: https://gist.github.com/umidjons/6865350#file-walk-dom-js
+  logseq.Editor.getBlock(e.uuid, {includeChildren: true}).then(parent_block => {
+    function loop(block) {
+      logseq.Editor.getBlock(block.uuid, {includeChildren: true}).then(tree_block => {
+        // if the block has children
+        if (tree_block.children.length > 0) {
+          tree_block.children.forEach(child_block => {
+            logseq.Editor.getBlockProperties(child_block.uuid).then(block_properties => {
+              // if the child block contains both the time-tracked and time-tracked-total properties – OR – if it only has the time-tracked-total property, add the time-tracked-total
+              if (((block_properties.timeTracked) && (block_properties.timeTrackedTotal)) || ((block_properties.timeTracked == undefined) && (block_properties.timeTrackedTotal))) {
+                children_time_entry += parseInt(block_properties.timeTrackedTotal.split(":")[0]*3600) + parseInt(block_properties.timeTrackedTotal.split(":")[1]*60) + parseInt(block_properties.timeTrackedTotal.split(":")[2]);
+              }
+              // if the child block contains only the time-tracked property, add the time-tracked
+              else if ((block_properties.timeTracked) && (block_properties.timeTrackedTotal == undefined)) {
+                children_time_entry += parseInt(block_properties.timeTracked.split(":")[0]*3600) + parseInt(block_properties.timeTracked.split(":")[1]*60) + parseInt(block_properties.timeTracked.split(":")[2]);
+              }
+            });
+            loop(child_block);
+          });
+        } 
+        //  add the time tracked of the parent block and its child(ren) blocks to get total tracked time
+        time_tracked_total = parent_time_entry + children_time_entry;
       });
     }
+    parent_block_content = parent_block.content;
+    loop(parent_block);
 
-    // 00:minutes:seconds
-    else if ((time_tracked_total >= 60) && (time_tracked_total <= 3599)) {
-      // minutes
-      min = (min.toString().length == 1) ? `0${min}` : `${min}`;
-
-      // seconds
-      sec = (sec.toString().length == 1) ? `0${sec}` : `${sec}`;
-
-      logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(b => {
-        // if the block does NOT have the time-tracked-total property
-        if (b == null) {
-          logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: 00:${min}:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-        // if the block does have the time-tracked-total property
-        else {
-          logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `00:${min}:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-      });
-    }
-
-    // hours:minutes:seconds
-    else if ((time_tracked_total >= 3600) && (time_tracked_total <= 86399)) {
-      // hours
-      hr = (hr.toString().length == 1) ? `0${hr}` : `${hr}`;
-
-      // minutes
-      min = (min.toString().length == 1) ? `0${min}` : `${min}`;
-
-      // seconds
-      sec = (sec.toString().length == 1) ? `0${sec}` : `${sec}`;
-
-      logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(c => {
-        // if the block does NOT have the time-tracked-total property
-        if (c == null) {
-          logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: ${hr}:${min}:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-        // if the block does have the time-tracked-total property
-        else {
-          logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `${hr}:${min}:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-      });
-    }
-
-    // days:hours:minutes:seconds
-    else if (time_tracked_total >= 84600) {
-      // days
-      day = (day.toString().length == 1) ? `0${day}` : `${day}`;
-
-      // hours
-      hr = (hr.toString().length == 1) ? `0${hr}` : `${hr}`;
-
-      // minutes
-      min = (min.toString().length == 1) ? `0${min}` : `${min}`;
-
-      // seconds
-      sec = (sec.toString().length == 1) ? `0${sec}` : `${sec}`;
-
-      logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(d => {
-        // if the block does NOT have the time-tracked-total property
-        if (d == null) {
-          logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: ${day}:${hr}:${min}:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-        // if the block does have the time-tracked-total property
-        else {
-          logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `${day}:${hr}:${min}:${sec} ${refresh_renderer}`);
-          showTotalTimeTrackedRenderer();
-        }
-      });
-    }
-  }, 75);
+    setDriftlessTimeout(() => {
+      // convert total time tracked to 00:00:00
+      if (time_tracked_total <= 86399) {
+        hr = Math.floor(time_tracked_total/3600);
+        min = Math.floor((time_tracked_total/60) % 60);
+        sec = Math.floor(time_tracked_total % 60);
+      }
+      else {
+        // convert total time tracked to 00:00:00:00
+        day = Math.floor(time_tracked_total/86400);
+        hr = Math.floor(((time_tracked_total/3600) % 60) % 24);
+        min = Math.floor((time_tracked_total/60) % 60);
+        sec = Math.floor(time_tracked_total % 60);
+      }
+  
+      if (time_tracked_total == 0) {
+        // logseq.App.showMsg("No time tracked", "warning");
+        console.log('0');
+      }
+      // 00:00:seconds
+      else if ((time_tracked_total >= 1) && (time_tracked_total <= 59)) {
+        sec = (time_tracked_total.toString().length == 1) ? `0${time_tracked_total}`: `${time_tracked_total}`;
+  
+        logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(a => {
+          // if the block does NOT have the time-tracked-total property
+          if (a == null) {
+            logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: 00:00:${sec} ${refresh_renderer}`);
+          }
+          // if the block does have the time-tracked-total property
+          else {
+            logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `00:00:${sec} ${refresh_renderer}`);
+          }
+        });
+      }
+  
+      // 00:minutes:seconds
+      else if ((time_tracked_total >= 60) && (time_tracked_total <= 3599)) {
+        // minutes
+        min = (min.toString().length == 1) ? `0${min}` : `${min}`;
+  
+        // seconds
+        sec = (sec.toString().length == 1) ? `0${sec}` : `${sec}`;
+  
+        logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(b => {
+          // if the block does NOT have the time-tracked-total property
+          if (b == null) {
+            logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: 00:${min}:${sec} ${refresh_renderer}`);
+          }
+          // if the block does have the time-tracked-total property
+          else {
+            logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `00:${min}:${sec} ${refresh_renderer}`);
+          }
+        });
+      }
+  
+      // hours:minutes:seconds
+      else if ((time_tracked_total >= 3600) && (time_tracked_total <= 86399)) {
+        // hours
+        hr = (hr.toString().length == 1) ? `0${hr}` : `${hr}`;
+  
+        // minutes
+        min = (min.toString().length == 1) ? `0${min}` : `${min}`;
+  
+        // seconds
+        sec = (sec.toString().length == 1) ? `0${sec}` : `${sec}`;
+  
+        logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(c => {
+          // if the block does NOT have the time-tracked-total property
+          if (c == null) {
+            logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: ${hr}:${min}:${sec} ${refresh_renderer}`);
+          }
+          // if the block does have the time-tracked-total property
+          else {
+            logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `${hr}:${min}:${sec} ${refresh_renderer}`);
+          }
+        });
+      }
+  
+      // days:hours:minutes:seconds
+      else if (time_tracked_total >= 84600) {
+        // days
+        day = (day.toString().length == 1) ? `0${day}` : `${day}`;
+  
+        // hours
+        hr = (hr.toString().length == 1) ? `0${hr}` : `${hr}`;
+  
+        // minutes
+        min = (min.toString().length == 1) ? `0${min}` : `${min}`;
+  
+        // seconds
+        sec = (sec.toString().length == 1) ? `0${sec}` : `${sec}`;
+  
+        logseq.Editor.getBlockProperty(e.uuid, "time-tracked-total").then(d => {
+          // if the block does NOT have the time-tracked-total property
+          if (d == null) {
+            logseq.Editor.updateBlock(e.uuid, `${parent_block_content}\ntime-tracked-total:: ${day}:${hr}:${min}:${sec} ${refresh_renderer}`);
+          }
+          // if the block does have the time-tracked-total property
+          else {
+            logseq.Editor.upsertBlockProperty(e.uuid, "time-tracked-total", `${day}:${hr}:${min}:${sec} ${refresh_renderer}`);
+          }
+        });
+      }
+    }, 500);
+  });
 }
 
 function notifSoundVolume() {
@@ -511,10 +442,15 @@ function startTimerBasics() {
     system_notif = setDriftlessInterval(() => new Notification(`${duration_tracked} has passed`), (pomo_duration * 60000));
   }
 
-  // removes timer mode
+  // removes timer mode and shows the stopwatch emoji next to the task
   logseq.provideStyle(`
     #timer-mode {
       display: none;
+    }
+    #block-content-${selected_task_uuid} > .flex.flex-row.justify-between > .flex-1 > span.inline::after {
+      content: "${logseq.settings.ActiveTaskEmoji}";
+      padding-left: 0.5em;
+      font-size: 1.1em;
     }
   `);
 }
@@ -533,15 +469,19 @@ function stopTimerBasics() {
   start_button.style.display = "block";
   log_entry_stop = format(new Date(), "yyyy-MM-dd EEE HH:mm:ss");
 
-  // shows timer mode
+  // shows timer mode and removes the stopwatch emoji next to the task
   logseq.provideStyle(`
     #timer-mode {
       display: block;
+    }
+    #block-content-${selected_task_uuid} > .flex.flex-row.justify-between > .flex-1 > span.inline::after {
+      content: "";
     }
   `);
 }
 
 function startTimer(e) {
+  selected_task_uuid = e.uuid;
   startTimerBasics();
 
   logseq.Editor.getBlock(e.uuid).then(selectedBlock => {
@@ -682,8 +622,7 @@ function updateStopwatch() {
   logseq.provideUI ({
     key: "stopwatch-duration",
     path: "#toolbar-duration",
-    template: 
-    `<a data-on-click="stop" class="button" id="stopwatch" style="font-size:0.3em; padding-left:0.3em; margin-top:0.25em; font-weight:600; font-family:Lucida Console, Consolas, monospace">${duration}</a>`
+    template: `<a data-on-click="stop" class="button" id="stopwatch" style="font-size:0.3em; padding-left:0.3em; margin-top:0.25em; font-weight:600; font-family:Lucida Console, Consolas, monospace">${duration}</a>`
   });
 }
 
@@ -731,10 +670,7 @@ function updatePomoTimer() {
       logseq.provideUI ({
         key: "pomoTimer-duration",
         path: "#toolbar-duration",
-        template: 
-        `
-          <a data-on-click="stop" class="button" id="stopwatch" style="font-size:0.3em; padding-left:0.3em; margin-top:0.25em; font-weight:600; font-family:Lucida Console, Consolas, monospace">${duration}</a>
-        `
+        template: `<a data-on-click="stop" class="button" id="stopwatch" style="font-size:0.3em; padding-left:0.3em; margin-top:0.25em; font-weight:600; font-family:Lucida Console, Consolas, monospace">${duration}</a>`
       });
     }
     // if the duration of the pomodoro interval is greater than an hour
@@ -756,11 +692,9 @@ function updatePomoTimer() {
         key: "pomoTimer-duration",
         path: "#toolbar-duration",
         template: 
-        `
-        <div>
+        `<div>
           <a class="button" data-on-click="stop">${duration}</a>
-        </div>
-        `
+        </div>`
       });
     }
     // if there's no time left to count down
@@ -836,30 +770,34 @@ function updatePomoTimer() {
   }
 }
 
-function showTotalTimeTrackedRenderer() {
-  // runs when getTotalTimeTracked() is called
-  logseq.App.onMacroRendererSlotted(async ({slot, payload}) => {
-    const refresh_button_color = logseq.settings.RefreshButtonColor;
-    const refresh_button_margin_top = logseq.settings.RefreshButtonMarginTop;
-    let [renderer_2] = payload.arguments;
+const main = async () => {
+  console.log("logseq-time-tracker-plugin loaded");
 
-    if (renderer_2.startsWith(":refreshTotalTimeTracked")) {
+  // for refresh button
+  const refresh_button_color = logseq.settings.RefreshButtonColor;
+  const refresh_button_margin_top = logseq.settings.RefreshButtonMarginTop;
+
+  logseq.App.onMacroRendererSlotted(async ({slot, payload}) => {
+    let [renderer] = payload.arguments;
+
+    if (renderer.startsWith(":refreshTotalTimeTracked")) {
+      // add the refresh button next to the time-tracked-total property
       logseq.provideUI({
-        key: "refresh",
+        key: "refresh_button",
         slot,
-        reset: true,
-        path: `#ls-block-1-${refresh_uuid}`,
-        template: `
-        <a data-on-click="refresh" class="button refresh" data-refresh-uuid="${refresh_uuid}">
-          <svg id="icon" xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-refresh" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" stroke="${refresh_button_color}" fill="none" stroke-linecap="round" stroke-linejoin="round">
+        path: `div[id^='ls-block'][id$='${payload.uuid}']`,
+        template: 
+        `<a data-on-click="refresh" class="button refresh" data-refresh-uuid="${payload.uuid}">
+          <svg id="icon" xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-refresh" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
             <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
             <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
           </svg>
-        </a>
-        `
+        </a>`,
+        reset: true
       });
-
+      
+      // style the refresh button
       logseq.provideStyle(`
         a.button.refresh {
           opacity: 0.75 !important;
@@ -872,80 +810,11 @@ function showTotalTimeTrackedRenderer() {
           background: transparent;
         }
         #icon {
+          stroke: ${refresh_button_color};
           margin-top: ${refresh_button_margin_top};
         }
-      `)
-    }
-  }); 
-}
-
-const main = async () => {
-  console.log("logseq-time-tracker-plugin loaded");
-
-  // renderer for refresh button
-  const refresh_button_color = logseq.settings.RefreshButtonColor;
-  const refresh_button_margin_top = logseq.settings.RefreshButtonMarginTop;
-
-  // runs when logseq is refreshed or plugin is reloaded
-  logseq.DB.datascriptQuery(`[
-    :find (pull ?b [*])
-    :where
-      [?b :block/content ?content]
-      [(clojure.string/includes? ?content "${refresh_renderer}")]
-    ]`).then(renderers => {
-    if (renderers != null) {
-      if (renderers.length > 0) {
-        for (const item of renderers) {     
-          logseq.App.onMacroRendererSlotted(async ({slot, payload}) => {
-            let [renderer_1] = payload.arguments;
-        
-            if (renderer_1.startsWith(":refreshTotalTimeTracked")) {
-              logseq.provideUI({
-                key: "refresh",
-                slot,
-                reset: true,
-                path: `#ls-block-1-${item[0].uuid.$uuid$}`,
-                template: `
-                <a data-on-click="refresh" class="button refresh" data-refresh-uuid="${item[0].uuid.$uuid$}">
-                  <svg id="icon" xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-refresh" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" stroke="${refresh_button_color}" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                    <path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4" />
-                    <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" />
-                  </svg>
-                </a>
-                `
-              });
-
-              logseq.provideStyle(`
-                a.button.refresh {
-                  opacity: 0.75 !important;
-                  height: 0 !important;
-                  padding: 0 !important;
-                  margin-left: 0.15em !important;
-                }
-                a.button.refresh.active, a.button.refresh:hover {
-                  opacity: 1 !important;
-                  background: transparent;
-                }
-                #icon {
-                  margin-top: ${refresh_button_margin_top};
-                }
-              `)
-            }
-          }); 
-
-          setDriftlessTimeout(() => {
-            logseq.Editor.editBlock(`${item[0].uuid.$uuid$}`, {pos: 0});  
-          }, 25);
-          setDriftlessTimeout(() => {
-            logseq.Editor.exitEditingMode();
-          }, 50);
-        }
-      }
-    }
-    else {
-      logseq.App.showMsg("No refresh buttons to update", "warning");
-    }
+      `) 
+    } 
   });
   
   // get pomodoro timer duration
@@ -1288,42 +1157,36 @@ const main = async () => {
         logseq.App.registerUIItem("toolbar", {
           key:"time-tracker-plugin",
           template: 
-          `
-            <a data-on-click="toggle" class="button" id="timer">
-              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-alarm" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                <circle cx="12" cy="13" r="7" />
-                <polyline points="12 10 12 13 14 13" />
-                <line x1="7" y1="4" x2="4.25" y2="6" />
-                <line x1="17" y1="4" x2="19.75" y2="6" />
-              </svg>
-            </a>
-          `
+          `<a data-on-click="toggle" class="button" id="timer">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-alarm" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+              <circle cx="12" cy="13" r="7" />
+              <polyline points="12 10 12 13 14 13" />
+              <line x1="7" y1="4" x2="4.25" y2="6" />
+              <line x1="17" y1="4" x2="19.75" y2="6" />
+            </svg>
+          </a>`
         });
 
         // toolbar: mode (S for stopwatch)
         logseq.App.registerUIItem("toolbar", {
           key: "default-mode",
           template: 
-            `
-            <div id="timer-mode" style="float:left; margin-left:-0.125em;">
-              <a data-on-click="switch_to_pomo" class="button">
-                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-letter-s" width="18" height="18" viewBox="0 0 24 24" stroke-width="2.25" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                  <path d="M17 8a4 4 0 0 0 -4 -4h-2a4 4 0 0 0 0 8h2a4 4 0 0 1 0 8h-2a4 4 0 0 1 -4 -4" />
-                </svg>
-              </a>
-            </div>
-          `
-          });
+          `<div id="timer-mode" style="float:left; margin-left:-0.125em;">
+            <a data-on-click="switch_to_pomo" class="button">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-letter-s" width="18" height="18" viewBox="0 0 24 24" stroke-width="2.25" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                <path d="M17 8a4 4 0 0 0 -4 -4h-2a4 4 0 0 0 0 8h2a4 4 0 0 1 0 8h-2a4 4 0 0 1 -4 -4" />
+              </svg>
+            </a>
+          </div>`
+        });
 
         // toolbar: duration
         logseq.App.registerUIItem("toolbar", {
           key: "time-tracker-plugin-duration",
           template:
-          `
-            <div id="toolbar-duration"></div>
-          `
+          `<div id="toolbar-duration"></div>`
         });
       }, 25);
     }
@@ -1351,46 +1214,39 @@ const main = async () => {
     setDriftlessTimeout(() => {
       // toolbar: icon
       logseq.App.registerUIItem("toolbar", {
-      key: "time-tracker-plugin",
-      template: 
-        `
-          <div id="timer">
-            <a class="button" data-on-click="toggle">
-              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-alarm" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
-                <circle cx="12" cy="13" r="7" />
-                <polyline points="12 10 12 13 14 13" />
-                <line x1="7" y1="4" x2="4.25" y2="6" />
-                <line x1="17" y1="4" x2="19.75" y2="6" />
-              </svg>
-            </a>
-          </div>
-        `
-        });
+        key: "time-tracker-plugin",
+        template: 
+        `<div id="timer">
+          <a class="button" data-on-click="toggle">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-alarm" width="22" height="22" viewBox="0 0 24 24" stroke-width="2" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+              <circle cx="12" cy="13" r="7" />
+              <polyline points="12 10 12 13 14 13" />
+              <line x1="7" y1="4" x2="4.25" y2="6" />
+              <line x1="17" y1="4" x2="19.75" y2="6" />
+            </svg>
+          </a>
+        </div>`
+      });
 
         // toolbar: mode (P for pomodoro timer)
         logseq.App.registerUIItem("toolbar", {
-        key: "default-mode",
-        template: 
-          `
-          <div id="timer-mode" style="float:left; margin-left:-0.125em;">
+          key: "default-mode",
+          template: 
+          `<div id="timer-mode" style="float:left; margin-left:-0.125em;">
             <a class="button" data-on-click="switch_to_stopwatch">
               <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-letter-p" width="18" height="18" viewBox="0 0 24 24" stroke-width="2.5" stroke="var(--ls-primary-text-color)" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
                 <path d="M7 20v-16h5.5a4 4 0 0 1 0 9h-5.5" />
               </svg>
             </a>
-          </div>
-        `
+          </div>`
         });
 
         // toolbar: duration
         logseq.App.registerUIItem("toolbar", {
           key: "time-tracker-plugin-duration",
-          template:
-          `
-            <div id="toolbar-duration"></div>
-          `
+          template: `<div id="toolbar-duration"></div>`
         });
       }, 25);
     }
@@ -1427,48 +1283,82 @@ const main = async () => {
     getTotalTimeTracked(e);
   });
 
-  // keyboard shortcut to start/stop timer
-  logseq.App.registerCommandPalette({
-    key: 'start-stop-timer',
-    label: 'Start/stop timer',
-    keybinding: {
-      binding: logseq.settings.KeyboardShortcut_Timer,
-      mode: 'global',
-    }
-  }, async () => {
-    if (pause) {
-      logseq.Editor.checkEditing().then(task_uuid => {
-        if (task_uuid) {
-          logseq.Editor.getBlock(task_uuid).then(task => {
-            add_task.value = task.content;
-            startTimer(task);
-          });
+  let keyboard_shortcut_version = 0;
 
-          setDriftlessTimeout(() => {
-            logseq.Editor.exitEditingMode();
-          }, 25);
+  // register keyboard shortcuts
+  function registerKeyboardShortcut(label, version, keyboard_shortcut) {
+    // start/stop timer
+    if (label == "KeyboardShortcut_Timer") {
+      logseq.App.registerCommandPalette({
+        key: `time-tracker-${label}-${version}`,
+        label: "Start/stop timer",
+        keybinding: {
+          binding: keyboard_shortcut,
+          mode: "global",
+        }
+      }, async () => {
+        if (pause) {
+          logseq.Editor.checkEditing().then(task_uuid => {
+            if (task_uuid) {
+              logseq.Editor.getBlock(task_uuid).then(task => {
+                add_task.value = task.content;
+                startTimer(task);
+              });
+              
+              logseq.Editor.exitEditingMode();
+            }
+            else {
+              logseq.App.showMsg("No task selected", "warning");
+            }
+          });
         }
         else {
-          logseq.App.showMsg("No task selected", "warning");
+          stop_button.click();
         }
       });
     }
-    else {
-      stop_button.click();
-    }
-  });
 
-  // keyboard shortcut to get/update the total time tracked
-  logseq.App.registerCommandPalette({
-    key: 'get-or-update-total-time-tracked',
-    label: 'Get/Update total time tracked',
-    keybinding: {
-      binding: logseq.settings.KeyboardShortcut_getTotalTimeTracked,
-      mode: 'global',
+    // get/update total time tracked
+    else if (label == "KeyboardShortcut_getTotalTimeTracked") {
+      logseq.App.registerCommandPalette({
+        key: `time-tracker-${label}-${version}`,
+        label: "Get/Update total time tracked",
+        keybinding: {
+          binding: keyboard_shortcut,
+          mode: "global",
+        }
+      }, async (e) => {
+        getTotalTimeTracked(e);
+        logseq.Editor.exitEditingMode();
+      });
     }
-  }, async (e) => {
-      getTotalTimeTracked(e);
-      logseq.Editor.exitEditingMode();
+  }
+
+  // unregister keyboard shortcut to tidy block(s)
+  function unregisterKeyboardShortcut(label, version) {
+    logseq.App.unregister_plugin_simple_command(`${logseq.baseInfo.id}/time-tracker-${label}-${version}`);
+    
+    version++;
+  }
+
+  logseq.onSettingsChanged(updated_settings => {
+    // register keyboard shortcuts
+    if (keyboard_shortcut_version == 0) {
+      registerKeyboardShortcut("KeyboardShortcut_Timer", keyboard_shortcut_version, updated_settings.KeyboardShortcut_Timer);
+      registerKeyboardShortcut("KeyboardShortcut_getTotalTimeTracked", keyboard_shortcut_version, updated_settings.KeyboardShortcut_getTotalTimeTracked);
+
+      // keyboard_shortcut_version = 0 → 1;
+      keyboard_shortcut_version++;
+    }
+    // when the keyboard shortcut is modified:
+    else {      
+      // keyboard_shortcut_version = 1 → 0;
+      keyboard_shortcut_version--;
+
+      // unregister previous shortcut
+      unregisterKeyboardShortcut("KeyboardShortcut_Timer", keyboard_shortcut_version);
+      unregisterKeyboardShortcut("KeyboardShortcut_getTotalTimeTracked", keyboard_shortcut_version);
+    }
   });
 }
 
