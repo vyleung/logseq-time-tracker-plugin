@@ -783,7 +783,7 @@ const main = async () => {
     if (renderer.startsWith(":refreshTotalTimeTracked")) {
       // add the refresh button next to the time-tracked-total property
       logseq.provideUI({
-        key: "refresh_button",
+        key: slot,
         slot,
         path: `div[id^='ls-block'][id$='${payload.uuid}']`,
         template: 
